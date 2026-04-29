@@ -1,0 +1,1001 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="Jak's 루틴" />
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+<meta name="theme-color" content="#1e1e1c" media="(prefers-color-scheme: dark)" />
+<link rel="manifest" href="manifest.json" />
+<link rel="apple-touch-icon" href="icon-192.png" />
+<title>Jak's 아침 루틴 트래커</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f5f5f3;
+  --bg-tertiary: #eceae4;
+  --text-primary: #1a1a18;
+  --text-secondary: #6b6b66;
+  --text-tertiary: #9a9a95;
+  --border-light: rgba(0,0,0,0.09);
+  --border-mid: rgba(0,0,0,0.18);
+  --border-strong: rgba(0,0,0,0.3);
+  --green: #1D9E75;
+  --green-light: #E1F5EE;
+  --green-dark: #0F6E56;
+  --blue: #378ADD;
+  --red: #E24B4A;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-primary: #1e1e1c;
+    --bg-secondary: #272725;
+    --bg-tertiary: #1a1a18;
+    --text-primary: #f0f0ec;
+    --text-secondary: #9a9a95;
+    --text-tertiary: #5f5e5a;
+    --border-light: rgba(255,255,255,0.08);
+    --border-mid: rgba(255,255,255,0.15);
+    --border-strong: rgba(255,255,255,0.25);
+    --green-light: #04342C;
+    --green-dark: #9FE1CB;
+  }
+}
+
+body {
+  font-family: -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  min-height: 100vh;
+  padding: 0;
+}
+
+.app-header {
+  background: var(--bg-primary);
+  border-bottom: 0.5px solid var(--border-light);
+  padding: 1rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.app-title { font-size: 17px; font-weight: 500; }
+
+.header-btn {
+  padding: 7px 14px;
+  border-radius: var(--radius-md);
+  border: 0.5px solid var(--border-mid);
+  background: transparent;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-family: inherit;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s;
+}
+.header-btn:hover { background: var(--bg-secondary); color: var(--text-primary); }
+
+.header-actions { display: flex; gap: 8px; }
+
+.container { max-width: 720px; margin: 0 auto; padding: 1.5rem 1rem 3rem; }
+
+.tabs { display: flex; gap: 4px; margin-bottom: 1.25rem; }
+.tab {
+  padding: 8px 18px;
+  border-radius: var(--radius-md);
+  border: 0.5px solid var(--border-mid);
+  background: transparent;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--text-secondary);
+  font-family: inherit;
+  transition: all 0.15s;
+}
+.tab:hover { background: var(--bg-secondary); }
+.tab.active {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-weight: 500;
+  border-color: var(--border-strong);
+}
+
+.panel { display: none; }
+.panel.active { display: block; }
+
+.card {
+  background: var(--bg-primary);
+  border: 0.5px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.section-label {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin-bottom: 10px;
+}
+
+input[type=date], input[type=number], input[type=text], select {
+  background: var(--bg-secondary);
+  border: 0.5px solid var(--border-mid);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: inherit;
+  padding: 7px 11px;
+  height: 36px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+input:focus, select:focus { border-color: var(--blue); box-shadow: 0 0 0 2px rgba(55,138,221,0.12); }
+input[type=date] { width: 180px; }
+
+.weight-row { display: flex; align-items: center; gap: 10px; }
+.weight-row input { width: 110px; }
+.weight-unit { font-size: 14px; color: var(--text-secondary); }
+
+/* Exercise cards */
+.exercises { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.exercise-card {
+  background: var(--bg-secondary);
+  border: 0.5px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  padding: 1rem;
+  transition: border-color 0.2s;
+}
+.exercise-card.full-width { grid-column: 1 / -1; }
+
+.ex-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.ex-name { font-size: 14px; font-weight: 500; }
+
+.ex-inputs { display: flex; gap: 10px; flex-wrap: wrap; }
+.ex-input-group { display: flex; align-items: center; gap: 5px; }
+.ex-input-group input { width: 64px; text-align: center; font-size: 14px; height: 32px; padding: 4px 6px; }
+.ex-input-group label { font-size: 12px; color: var(--text-secondary); white-space: nowrap; }
+
+/* Save button */
+.save-btn {
+  width: 100%; padding: 11px;
+  border-radius: var(--radius-md);
+  border: 0.5px solid var(--border-mid);
+  background: var(--bg-secondary);
+  font-size: 15px; font-weight: 500;
+  cursor: pointer; color: var(--text-primary);
+  font-family: inherit; transition: all 0.15s; margin-top: 1rem;
+}
+.save-btn:hover { background: var(--bg-tertiary); }
+
+.toast { font-size: 13px; text-align: center; margin-top: 10px; height: 20px; transition: opacity 0.3s; }
+
+/* Stats */
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; margin-bottom: 1rem; }
+.stat-card { background: var(--bg-secondary); border-radius: var(--radius-md); padding: 0.9rem 1rem; }
+.stat-val { font-size: 20px; font-weight: 500; line-height: 1.2; }
+.stat-lbl { font-size: 11px; color: var(--text-secondary); margin-top: 3px; }
+.stat-sub { font-size: 12px; color: var(--text-tertiary); margin-top: 2px; }
+.pos { color: var(--red); }
+.neg { color: var(--green); }
+
+.chart-wrap { position: relative; width: 100%; height: 220px; margin-bottom: 0.5rem; }
+.chart-period { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+.period-btn {
+  padding: 4px 12px; border-radius: 100px;
+  border: 0.5px solid var(--border-mid);
+  background: transparent; cursor: pointer;
+  font-size: 12px; color: var(--text-secondary);
+  font-family: inherit; transition: all 0.15s;
+}
+.period-btn.active { background: var(--bg-secondary); color: var(--text-primary); border-color: var(--border-strong); font-weight: 500; }
+
+/* History */
+.history-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.history-table th {
+  text-align: left; padding: 7px 10px;
+  color: var(--text-secondary); font-weight: 400;
+  border-bottom: 0.5px solid var(--border-light);
+  white-space: nowrap;
+}
+.history-table td {
+  padding: 9px 10px; border-bottom: 0.5px solid var(--border-light);
+  color: var(--text-primary); white-space: nowrap;
+}
+.badge { display: inline-block; padding: 2px 8px; border-radius: 100px; font-size: 11px; }
+.badge-done { background: var(--green-light); color: var(--green-dark); }
+.badge-skip { background: var(--bg-secondary); color: var(--text-tertiary); }
+
+/* Modal overlay */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 100;
+  display: flex; align-items: center; justify-content: center;
+  padding: 1rem;
+  opacity: 0; pointer-events: none; transition: opacity 0.2s;
+}
+.modal-overlay.open { opacity: 1; pointer-events: auto; }
+.modal {
+  background: var(--bg-primary);
+  border-radius: var(--radius-xl);
+  width: 100%; max-width: 540px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 1.5rem;
+  transform: translateY(12px); transition: transform 0.2s;
+}
+.modal-overlay.open .modal { transform: translateY(0); }
+.modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; }
+.modal-title { font-size: 17px; font-weight: 500; }
+.modal-close {
+  width: 30px; height: 30px; border-radius: 50%;
+  border: 0.5px solid var(--border-mid);
+  background: var(--bg-secondary); cursor: pointer;
+  font-size: 16px; display: flex; align-items: center; justify-content: center;
+  color: var(--text-secondary); font-family: inherit;
+}
+.modal-close:hover { background: var(--bg-tertiary); }
+
+/* Settings — exercise list */
+.ex-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 1rem; }
+.ex-list-item {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--bg-secondary); border-radius: var(--radius-md);
+  padding: 10px 12px; border: 0.5px solid var(--border-light);
+}
+.ex-list-item input[type=text] { flex: 1; height: 32px; font-size: 13px; }
+.ex-list-item input[type=number] { width: 52px; height: 32px; text-align: center; font-size: 13px; }
+.ex-list-item label { font-size: 12px; color: var(--text-secondary); white-space: nowrap; }
+.ex-list-item .drag-handle { cursor: grab; color: var(--text-tertiary); font-size: 14px; user-select: none; }
+.ex-list-item .del-btn {
+  width: 26px; height: 26px; border-radius: 50%;
+  border: 0.5px solid var(--border-mid);
+  background: transparent; cursor: pointer;
+  color: var(--red); font-size: 14px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: inherit; flex-shrink: 0;
+}
+.ex-list-item .del-btn:hover { background: #fdf0f0; }
+
+.add-ex-btn {
+  width: 100%; padding: 9px;
+  border-radius: var(--radius-md);
+  border: 0.5px dashed var(--border-mid);
+  background: transparent; cursor: pointer;
+  font-size: 13px; color: var(--text-secondary);
+  font-family: inherit; transition: all 0.15s;
+}
+.add-ex-btn:hover { background: var(--bg-secondary); color: var(--text-primary); }
+
+.settings-section { margin-bottom: 1.25rem; }
+.settings-section-title { font-size: 13px; font-weight: 500; margin-bottom: 8px; color: var(--text-secondary); }
+
+.modal-actions { display: flex; gap: 8px; margin-top: 1.25rem; padding-top: 1rem; border-top: 0.5px solid var(--border-light); }
+.btn-primary {
+  flex: 1; padding: 10px;
+  border-radius: var(--radius-md);
+  border: none; background: var(--text-primary);
+  color: var(--bg-primary); cursor: pointer;
+  font-size: 14px; font-weight: 500; font-family: inherit;
+  transition: opacity 0.15s;
+}
+.btn-primary:hover { opacity: 0.85; }
+.btn-secondary {
+  padding: 10px 18px;
+  border-radius: var(--radius-md);
+  border: 0.5px solid var(--border-mid);
+  background: transparent; cursor: pointer;
+  font-size: 14px; color: var(--text-secondary);
+  font-family: inherit; transition: all 0.15s;
+}
+.btn-secondary:hover { background: var(--bg-secondary); }
+
+/* Data import/export */
+.data-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+.data-btn {
+  padding: 8px 16px;
+  border-radius: var(--radius-md);
+  border: 0.5px solid var(--border-mid);
+  background: var(--bg-secondary); cursor: pointer;
+  font-size: 13px; color: var(--text-secondary);
+  font-family: inherit; transition: all 0.15s;
+}
+.data-btn:hover { background: var(--bg-tertiary); color: var(--text-primary); }
+.data-btn.danger { color: var(--red); border-color: rgba(226,75,74,0.3); }
+.data-btn.danger:hover { background: #fdf0f0; }
+
+.empty-msg { text-align: center; padding: 2.5rem; color: var(--text-tertiary); font-size: 14px; }
+
+.memo-cell { min-width: 120px; max-width: 200px; }
+.memo-input {
+  width: 100%; height: 28px; font-size: 12px;
+  background: transparent; border: 0.5px solid transparent;
+  border-radius: 4px; color: var(--text-primary);
+  font-family: inherit; padding: 3px 6px;
+  transition: border-color 0.15s;
+}
+.memo-input:hover { border-color: var(--border-mid); }
+.memo-input:focus { border-color: var(--blue); background: var(--bg-secondary); outline: none; }
+
+.divider { height: 0.5px; background: var(--border-light); margin: 1rem 0; }
+
+/* Full width table scroll */
+.table-scroll { overflow-x: auto; }
+</style>
+</head>
+<body>
+
+<div class="app-header">
+  <span class="app-title">🌅 Jak's 아침 루틴 트래커</span>
+  <div class="header-actions">
+    <button class="header-btn" onclick="openSettings()">⚙ 환경설정</button>
+  </div>
+</div>
+
+<div class="container">
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('record')">기록</button>
+    <button class="tab" onclick="switchTab('history')">기록 내역</button>
+    <button class="tab" onclick="switchTab('stats')">통계 & 그래프</button>
+  </div>
+
+  <!-- 기록 탭 -->
+  <div id="panel-record" class="panel active">
+    <div class="card">
+      <div class="section-label">날짜</div>
+      <input type="date" id="inp-date" onchange="onDateChange(this.value)" />
+    </div>
+
+    <div class="card">
+      <div class="section-label">체중</div>
+      <div class="weight-row">
+        <input type="number" id="inp-weight" step="0.1" min="30" max="200" placeholder="0.0" />
+        <span class="weight-unit">kg</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-label" style="margin-bottom:14px;">운동</div>
+      <div class="exercises" id="exercise-inputs"></div>
+      <div class="divider" style="margin: 1rem 0;"></div>
+      <div class="section-label">참고 메모</div>
+      <textarea id="inp-memo" placeholder="그날 운동과 관련한 메모를 적어주세요..." rows="3" style="width:100%; background:var(--bg-secondary); border:0.5px solid var(--border-mid); border-radius:var(--radius-md); color:var(--text-primary); font-family:inherit; font-size:14px; padding:10px 12px; resize:vertical; outline:none; line-height:1.6;"></textarea>
+      <button class="save-btn" onclick="saveRecord()">저장</button>
+      <div class="toast" id="toast"></div>
+    </div>
+  </div>
+
+  <!-- 기록 내역 탭 -->
+  <div id="panel-history" class="panel">
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+        <div class="section-label" style="margin-bottom:0;">전체 기록</div>
+        <div style="display:flex; gap:6px;">
+          <button class="data-btn" onclick="exportData()">내보내기</button>
+          <label class="data-btn" style="cursor:pointer;">불러오기 <input type="file" accept=".json" onchange="importData(event)" style="display:none;" /></label>
+        </div>
+      </div>
+      <div class="table-scroll">
+        <table class="history-table" id="history-table">
+          <thead id="history-head"></thead>
+          <tbody id="history-body"></tbody>
+        </table>
+      </div>
+      <div id="no-history" class="empty-msg" style="display:none;">아직 기록이 없습니다.</div>
+    </div>
+  </div>
+
+  <!-- 통계 탭 -->
+  <div id="panel-stats" class="panel">
+    <div class="card">
+      <div class="section-label">날짜</div>
+      <div style="font-size:16px; font-weight:500;" id="st-today">—</div>
+    </div>
+
+    <div class="card">
+      <div class="section-label">체중 현황</div>
+      <div class="stats-grid" id="weight-stats-grid"></div>
+    </div>
+
+    <div class="card">
+      <div class="section-label">체중 변화</div>
+      <div class="chart-period" id="weight-period-btns"></div>
+      <div class="chart-wrap">
+        <canvas id="weightChart" role="img" aria-label="날짜별 체중 변화 그래프">체중 데이터가 쌓이면 표시됩니다.</canvas>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-label">운동별 누적 횟수</div>
+      <div class="chart-period" id="ex-period-btns"></div>
+      <div class="chart-wrap" style="height:200px;">
+        <canvas id="exChart" role="img" aria-label="운동별 누적 횟수">운동 데이터가 쌓이면 표시됩니다.</canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 환경설정 모달 -->
+<div class="modal-overlay" id="settings-modal" onclick="closeSettingsOnBg(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">환경설정</span>
+      <button class="modal-close" onclick="closeSettings()">✕</button>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-section-title">운동 항목 관리</div>
+      <div class="ex-list" id="settings-ex-list"></div>
+      <button class="add-ex-btn" onclick="addExerciseItem()">+ 운동 항목 추가</button>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="settings-section">
+      <div class="settings-section-title">데이터 관리</div>
+      <div class="data-btns">
+        <button class="data-btn" onclick="exportData()">📥 데이터 내보내기 (.json)</button>
+        <label class="data-btn" style="cursor:pointer;">
+          📤 데이터 불러오기
+          <input type="file" accept=".json" onchange="importData(event)" style="display:none;" />
+        </label>
+        <button class="data-btn danger" onclick="clearAllData()">🗑 전체 삭제</button>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeSettings()">취소</button>
+      <button class="btn-primary" onclick="saveSettings()">저장</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===================== STATE =====================
+const STORAGE_KEY = 'morning_routine_records';
+const EXERCISES_KEY = 'morning_routine_exercises';
+
+let records = [];
+let exercises = [];
+let weightChartInst = null, exChartInst = null;
+let currentWeightPeriod = 30, currentExPeriod = 30;
+let tempExercises = [];
+
+// ===================== INIT =====================
+function init() {
+  loadStorage();
+  const today = new Date().toISOString().slice(0, 10);
+  document.getElementById('inp-date').value = today;
+  // 순서 중요: 입력 UI 먼저 렌더링 → 그 다음 값 로드
+  renderExerciseInputs();
+  loadDateData(today);
+}
+
+// ===================== STORAGE =====================
+function loadStorage() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    records = raw ? JSON.parse(raw) : [];
+  } catch(e) { records = []; }
+
+  try {
+    const raw = localStorage.getItem(EXERCISES_KEY);
+    if (raw) {
+      exercises = JSON.parse(raw);
+    } else {
+      exercises = defaultExercises();
+      saveExercises();
+    }
+  } catch(e) { exercises = defaultExercises(); }
+}
+
+function saveRecords() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(records)); } catch(e) {}
+}
+
+function saveExercises() {
+  try { localStorage.setItem(EXERCISES_KEY, JSON.stringify(exercises)); } catch(e) {}
+}
+
+function defaultExercises() {
+  return [
+    { id: uid(), name: '국민체조',    fullWidth: true,  trackReps: false, trackSets: true  },
+    { id: uid(), name: '스쿼트',      fullWidth: false, trackReps: true,  trackSets: true  },
+    { id: uid(), name: '팔굽혀펴기',  fullWidth: false, trackReps: true,  trackSets: true  },
+    { id: uid(), name: '윗몸일으키기',fullWidth: false, trackReps: true,  trackSets: true  },
+  ];
+}
+
+function uid() { return Math.random().toString(36).slice(2, 8); }
+
+// ===================== TABS =====================
+function switchTab(t) {
+  document.querySelectorAll('.tab').forEach((b, i) =>
+    b.classList.toggle('active', ['record','history','stats'][i] === t));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-' + t).classList.add('active');
+  if (t === 'stats') renderStats();
+  if (t === 'history') renderHistory();
+}
+
+// ===================== RECORD TAB =====================
+function renderExerciseInputs() {
+  const container = document.getElementById('exercise-inputs');
+  container.innerHTML = '';
+  exercises.forEach(ex => {
+    const card = document.createElement('div');
+    card.className = 'exercise-card' + (ex.fullWidth ? ' full-width' : '');
+    card.id = 'card-' + ex.id;
+
+    let inputsHTML = '';
+    if (ex.trackReps && ex.trackSets) {
+      inputsHTML = `
+        <div class="ex-input-group">
+          <input type="number" id="reps-${ex.id}" min="0" max="9999" value="0" />
+          <label>회</label>
+        </div>
+        <div class="ex-input-group">
+          <input type="number" id="sets-${ex.id}" min="0" max="999" value="0" />
+          <label>세트</label>
+        </div>`;
+    } else if (ex.trackReps) {
+      inputsHTML = `
+        <div class="ex-input-group">
+          <input type="number" id="reps-${ex.id}" min="0" max="9999" value="0" />
+          <label>회</label>
+        </div>`;
+    } else if (ex.trackSets) {
+      inputsHTML = `
+        <div class="ex-input-group">
+          <input type="number" id="sets-${ex.id}" min="0" max="999" value="0" />
+          <label>세트</label>
+        </div>`;
+    }
+
+    card.innerHTML = `
+      <div class="ex-header">
+        <span class="ex-name">${ex.name}</span>
+      </div>
+      <div class="ex-inputs">${inputsHTML}</div>
+    `;
+    container.appendChild(card);
+  });
+}
+
+function loadDateData(date) {
+  const rec = records.find(r => r.date === date);
+  const memoEl = document.getElementById('inp-memo');
+
+  if (rec) {
+    document.getElementById('inp-weight').value = rec.weight != null ? rec.weight : '';
+    if (memoEl) memoEl.value = rec.memo || '';
+    exercises.forEach(ex => {
+      // id로 먼저 찾고, 없으면 name으로 fallback
+      let saved = rec.exercises ? rec.exercises[ex.id] : null;
+      if (!saved && rec.exercises) {
+        saved = Object.values(rec.exercises).find(v => v.name === ex.name) || null;
+      }
+      const reps = saved ? (saved.reps || 0) : 0;
+      const sets = saved ? (saved.sets || 0) : 0;
+      const repsEl = document.getElementById('reps-' + ex.id);
+      const setsEl = document.getElementById('sets-' + ex.id);
+      if (repsEl) repsEl.value = reps;
+      if (setsEl) setsEl.value = sets;
+    });
+  } else {
+    document.getElementById('inp-weight').value = '';
+    if (memoEl) memoEl.value = '';
+    exercises.forEach(ex => {
+      const repsEl = document.getElementById('reps-' + ex.id);
+      const setsEl = document.getElementById('sets-' + ex.id);
+      if (repsEl) repsEl.value = 0;
+      if (setsEl) setsEl.value = 0;
+    });
+  }
+}
+
+function onDateChange(date) { loadDateData(date); }
+
+function saveRecord() {
+  const date = document.getElementById('inp-date').value;
+  const weight = parseFloat(document.getElementById('inp-weight').value);
+  if (!date) { flash('날짜를 선택해주세요.', '#e24b4a'); return; }
+
+  const exData = {};
+  exercises.forEach(ex => {
+    const repsEl = document.getElementById('reps-' + ex.id);
+    const setsEl = document.getElementById('sets-' + ex.id);
+    const reps = repsEl ? (parseInt(repsEl.value) || 0) : 0;
+    const sets = setsEl ? (parseInt(setsEl.value) || 0) : 0;
+    exData[ex.id] = {
+      name: ex.name,
+      reps: reps,
+      sets: sets,
+      trackReps: ex.trackReps,
+      trackSets: ex.trackSets,
+    };
+  });
+
+  const memo = document.getElementById('inp-memo')?.value || '';
+  const rec = { date, weight: isNaN(weight) ? null : weight, exercises: exData, memo };
+  const idx = records.findIndex(r => r.date === date);
+  if (idx >= 0) records[idx] = rec; else records.push(rec);
+  records.sort((a, b) => a.date.localeCompare(b.date));
+  saveRecords();
+  flash('저장 완료! 오늘도 수고했어요 💪', '#1D9E75');
+}
+
+function flash(msg, color = '#1D9E75') {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.style.color = color; t.style.opacity = '1';
+  setTimeout(() => { t.style.opacity = '0'; }, 2200);
+}
+
+// ===================== HISTORY TAB =====================
+// 저장된 데이터에서 해당 운동 항목 찾기 (id 우선, name fallback)
+function findSavedEx(rec, ex) {
+  if (!rec.exercises) return null;
+  // 1. id로 직접 찾기
+  if (rec.exercises[ex.id]) return rec.exercises[ex.id];
+  // 2. 이름으로 찾기 (id가 달라졌을 경우 대비)
+  return Object.values(rec.exercises).find(v => v.name === ex.name) || null;
+}
+
+// 기록 내역 배지 텍스트 생성
+// done 여부와 무관하게 reps/sets 값이 있으면 표시
+function makeBadge(saved, ex) {
+  if (!saved) return `<span class="badge badge-skip">-</span>`;
+  const reps = saved.reps || 0;
+  const sets = saved.sets || 0;
+  const hasReps = ex ? ex.trackReps : (saved.trackReps !== undefined ? saved.trackReps : reps > 0);
+  const hasSets = ex ? ex.trackSets : (saved.trackSets !== undefined ? saved.trackSets : sets > 0);
+
+  // 값이 하나도 없으면 체크 여부로 판단
+  if (reps === 0 && sets === 0) {
+    return saved.done
+      ? `<span class="badge badge-done">완료</span>`
+      : `<span class="badge badge-skip">-</span>`;
+  }
+
+  // 값이 있으면 무조건 표시 (done 여부 무관)
+  let label = '';
+  if (hasReps && hasSets && reps > 0 && sets > 0) label = `${reps}/${sets}`;
+  else if (reps > 0 && sets > 0) label = `${reps}/${sets}`;
+  else if (reps > 0) label = `${reps}회`;
+  else if (sets > 0) label = `${sets}세트`;
+  else label = saved.done ? '완료' : '-';
+
+  const cls = saved.done ? 'badge-done' : 'badge-skip';
+  return `<span class="badge ${cls}">${label}</span>`;
+}
+
+function renderHistory() {
+  const head = document.getElementById('history-head');
+  const body = document.getElementById('history-body');
+  const none = document.getElementById('no-history');
+  head.innerHTML = ''; body.innerHTML = '';
+
+  if (records.length === 0) { none.style.display = 'block'; return; }
+  none.style.display = 'none';
+
+  // 헤더 생성
+  let thHTML = '<tr><th>날짜</th><th>체중</th>';
+  exercises.forEach(ex => { thHTML += `<th>${ex.name}</th>`; });
+  thHTML += '<th>메모</th></tr>';
+  head.innerHTML = thHTML;
+
+  // 행 생성
+  [...records].reverse().forEach(r => {
+    const tr = document.createElement('tr');
+    let tdHTML = `<td>${r.date.slice(5).replace('-', '/')}</td>`;
+    tdHTML += `<td>${r.weight != null ? r.weight.toFixed(1) + 'kg' : '—'}</td>`;
+
+    exercises.forEach(ex => {
+      const saved = findSavedEx(r, ex);
+      tdHTML += `<td>${makeBadge(saved, ex)}</td>`;
+    });
+
+    const memo = (r.memo || '').replace(/"/g, '&quot;');
+    tdHTML += `<td class="memo-cell"><input type="text" class="memo-input" value="${memo}" placeholder="메모 입력" onchange="saveMemo('${r.date}', this.value)" /></td>`;
+
+    tr.innerHTML = tdHTML;
+    body.appendChild(tr);
+  });
+}
+
+function saveMemo(date, value) {
+  const idx = records.findIndex(r => r.date === date);
+  if (idx >= 0) { records[idx].memo = value; saveRecords(); }
+}
+
+// ===================== STATS TAB =====================
+const COLORS = ['#B5D4F4','#9FE1CB','#FAC775','#F4C0D1','#AFA9EC','#F0997B','#C0DD97','#F7C1C1'];
+
+function getWeightedRecords(days) {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - days);
+  const cutoffStr = cutoff.toISOString().slice(0, 10);
+  return records.filter(r => r.weight != null && r.date >= cutoffStr);
+}
+
+function avgWeight(days) {
+  const filtered = records.filter(r => {
+    if (r.weight == null) return false;
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - days);
+    return r.date >= cutoff.toISOString().slice(0, 10);
+  });
+  if (!filtered.length) return null;
+  return filtered.reduce((s, r) => s + r.weight, 0) / filtered.length;
+}
+
+function renderStats() {
+  const today = new Date();
+  const todayStr = today.toISOString().slice(0, 10);
+  const todayLabel = today.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
+  document.getElementById('st-today').textContent = todayLabel;
+
+  const todayRec = records.find(r => r.date === todayStr);
+  const todayW = todayRec?.weight ?? null;
+
+  const yd = new Date(today); yd.setDate(yd.getDate() - 1);
+  const ydStr = yd.toISOString().slice(0, 10);
+  const ydRec = records.find(r => r.date === ydStr);
+  const ydW = ydRec?.weight ?? null;
+
+  const avg7 = avgWeight(7);
+  const avg30 = avgWeight(30);
+  const avg180 = avgWeight(180);
+
+  function diffText(base, compare) {
+    if (base == null || compare == null) return null;
+    const d = compare - base;
+    return { val: (d >= 0 ? '+' : '') + d.toFixed(1) + 'kg', cls: d > 0 ? 'pos' : d < 0 ? 'neg' : '' };
+  }
+
+  const wGrid = document.getElementById('weight-stats-grid');
+  const items = [
+    { label: '오늘 체중',  val: todayW != null ? todayW.toFixed(1) + 'kg' : '—', diff: null },
+    { label: '어제 체중',  val: ydW    != null ? ydW.toFixed(1)    + 'kg' : '—', diff: diffText(ydW, todayW) },
+    { label: '1주일 평균', val: avg7   != null ? avg7.toFixed(1)   + 'kg' : '—', diff: diffText(avg7, todayW) },
+    { label: '1개월 평균', val: avg30  != null ? avg30.toFixed(1)  + 'kg' : '—', diff: diffText(avg30, todayW) },
+    { label: '6개월 평균', val: avg180 != null ? avg180.toFixed(1) + 'kg' : '—', diff: diffText(avg180, todayW) },
+  ];
+
+  wGrid.innerHTML = items.map(it => `
+    <div class="stat-card">
+      <div class="stat-val">${it.val}</div>
+      <div class="stat-lbl">${it.label}</div>
+      ${it.diff ? `<div class="stat-sub ${it.diff.cls}">${it.diff.val}</div>` : ''}
+    </div>
+  `).join('');
+
+  renderWeightChart(currentWeightPeriod);
+  renderExChart(currentExPeriod);
+
+  const wpBtns = document.getElementById('weight-period-btns');
+  wpBtns.innerHTML = [7,14,30,60,90,180].map(d =>
+    `<button class="period-btn ${d === currentWeightPeriod ? 'active' : ''}" onclick="setWeightPeriod(${d})">${d}일</button>`
+  ).join('');
+
+  const epBtns = document.getElementById('ex-period-btns');
+  epBtns.innerHTML = [7,14,30,60,90,180].map(d =>
+    `<button class="period-btn ${d === currentExPeriod ? 'active' : ''}" onclick="setExPeriod(${d})">${d}일</button>`
+  ).join('');
+}
+
+function setWeightPeriod(d) {
+  currentWeightPeriod = d;
+  document.querySelectorAll('#weight-period-btns .period-btn').forEach(b =>
+    b.classList.toggle('active', parseInt(b.textContent) === d));
+  renderWeightChart(d);
+}
+
+function setExPeriod(d) {
+  currentExPeriod = d;
+  document.querySelectorAll('#ex-period-btns .period-btn').forEach(b =>
+    b.classList.toggle('active', parseInt(b.textContent) === d));
+  renderExChart(d);
+}
+
+function renderWeightChart(days) {
+  const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const gridColor = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)';
+  const tickColor = isDark ? '#6b6b66' : '#9a9a95';
+
+  const filtered = getWeightedRecords(days);
+  if (weightChartInst) weightChartInst.destroy();
+  weightChartInst = new Chart(document.getElementById('weightChart'), {
+    type: 'line',
+    data: {
+      labels: filtered.map(r => r.date.slice(5)),
+      datasets: [{
+        label: '체중 (kg)', data: filtered.map(r => r.weight),
+        borderColor: '#378ADD', backgroundColor: 'rgba(55,138,221,0.07)',
+        pointBackgroundColor: '#378ADD', pointRadius: 3, tension: 0.35, fill: true,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { font:{size:11}, color:tickColor, autoSkip:true, maxTicksLimit:10 }, grid:{display:false} },
+        y: { ticks: { font:{size:11}, color:tickColor, callback: v => v+'kg' }, grid:{color:gridColor} }
+      }
+    }
+  });
+}
+
+function renderExChart(days) {
+  const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const gridColor = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)';
+  const tickColor = isDark ? '#6b6b66' : '#9a9a95';
+
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - days);
+  const cutoffStr = cutoff.toISOString().slice(0, 10);
+  const filtered = records.filter(r => r.date >= cutoffStr);
+
+  const totals = {};
+  exercises.forEach(ex => { totals[ex.id] = { name: ex.name, val: 0 }; });
+
+  filtered.forEach(r => {
+    if (!r.exercises) return;
+    exercises.forEach(ex => {
+      const saved = findSavedEx(r, ex);
+      if (!saved) return;
+      const reps = saved.reps || 0;
+      const sets = saved.sets || 0;
+      if (ex.trackReps && reps > 0) totals[ex.id].val += reps;
+      else if (ex.trackSets && sets > 0) totals[ex.id].val += sets;
+    });
+  });
+
+  const labels = Object.values(totals).map(t => t.name);
+  const data   = Object.values(totals).map(t => t.val);
+
+  if (exChartInst) exChartInst.destroy();
+  exChartInst = new Chart(document.getElementById('exChart'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{ label: '누적', data, backgroundColor: COLORS.slice(0, labels.length), borderRadius: 4 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { font:{size:11}, color:tickColor }, grid:{display:false} },
+        y: { ticks: { font:{size:11}, color:tickColor }, grid:{color:gridColor} }
+      }
+    }
+  });
+}
+
+// ===================== SETTINGS MODAL =====================
+function openSettings() {
+  tempExercises = exercises.map(ex => ({ ...ex }));
+  renderSettingsList();
+  document.getElementById('settings-modal').classList.add('open');
+}
+
+function closeSettings() {
+  document.getElementById('settings-modal').classList.remove('open');
+}
+
+function closeSettingsOnBg(e) {
+  if (e.target === document.getElementById('settings-modal')) closeSettings();
+}
+
+function renderSettingsList() {
+  const list = document.getElementById('settings-ex-list');
+  list.innerHTML = '';
+  tempExercises.forEach((ex, i) => {
+    const item = document.createElement('div');
+    item.className = 'ex-list-item';
+    item.innerHTML = `
+      <span class="drag-handle">⠿</span>
+      <input type="text" value="${ex.name}" placeholder="운동 이름" oninput="tempExercises[${i}].name=this.value" style="flex:1;" />
+      <label style="font-size:11px;color:var(--text-tertiary);">회</label>
+      <input type="checkbox" ${ex.trackReps ? 'checked' : ''} onchange="tempExercises[${i}].trackReps=this.checked" title="회 기록" />
+      <label style="font-size:11px;color:var(--text-tertiary);">세트</label>
+      <input type="checkbox" ${ex.trackSets ? 'checked' : ''} onchange="tempExercises[${i}].trackSets=this.checked" title="세트 기록" />
+      <label style="font-size:11px;color:var(--text-tertiary);">전체폭</label>
+      <input type="checkbox" ${ex.fullWidth ? 'checked' : ''} onchange="tempExercises[${i}].fullWidth=this.checked" title="전체 너비" />
+      <button class="del-btn" onclick="removeExerciseItem(${i})">✕</button>
+    `;
+    list.appendChild(item);
+  });
+}
+
+function addExerciseItem() {
+  tempExercises.push({ id: uid(), name: '', fullWidth: false, trackReps: true, trackSets: true });
+  renderSettingsList();
+}
+
+function removeExerciseItem(i) {
+  tempExercises.splice(i, 1);
+  renderSettingsList();
+}
+
+function saveSettings() {
+  exercises = tempExercises.filter(ex => ex.name.trim() !== '');
+  saveExercises();
+  renderExerciseInputs();
+  const date = document.getElementById('inp-date').value;
+  if (date) loadDateData(date);
+  closeSettings();
+}
+
+// ===================== DATA EXPORT / IMPORT =====================
+function exportData() {
+  const payload = { records, exercises, exportedAt: new Date().toISOString() };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `morning_routine_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importData(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (data.records)   { records   = data.records;   saveRecords();   }
+      if (data.exercises) { exercises = data.exercises; saveExercises(); }
+      renderExerciseInputs();
+      const date = document.getElementById('inp-date').value;
+      if (date) loadDateData(date);
+      alert('데이터를 성공적으로 불러왔습니다!');
+    } catch(err) { alert('파일을 읽는 중 오류가 발생했습니다.'); }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+function clearAllData() {
+  if (!confirm('모든 기록을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) return;
+  records = [];
+  saveRecords();
+  renderExerciseInputs();
+  const date = document.getElementById('inp-date').value;
+  if (date) loadDateData(date);
+  alert('모든 기록이 삭제되었습니다.');
+}
+
+// ===================== START =====================
+init();
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js')
+      .then(r => console.log('SW registered'))
+      .catch(e => console.log('SW failed:', e));
+  });
+}
+</script>
+</body>
+</html>
