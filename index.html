@@ -9,8 +9,6 @@
 <meta name="apple-mobile-web-app-title" content="Jak's 루틴" />
 <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
 <meta name="theme-color" content="#1e1e1c" media="(prefers-color-scheme: dark)" />
-<link rel="manifest" href="manifest.json" />
-<link rel="apple-touch-icon" href="icon-192.png" />
 <title>Jak's 아침 루틴 트래커</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <style>
@@ -365,7 +363,7 @@ input[type=date] { width: 180px; }
     <div class="card">
       <div class="section-label">체중</div>
       <div class="weight-row">
-        <input type="number" id="inp-weight" step="0.1" min="30" max="200" placeholder="0.0" />
+        <input type="number" id="inp-weight" step="0.1" min="30" max="200" placeholder="0.0" onfocus="this.select()" />
         <span class="weight-unit">kg</span>
       </div>
     </div>
@@ -478,11 +476,23 @@ let currentWeightPeriod = 30, currentExPeriod = 30;
 let tempExercises = [];
 
 // ===================== INIT =====================
+// 한국 시간(KST, UTC+9) 기준 오늘 날짜 반환
+function getTodayKST() {
+  const now = new Date();
+  const kst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+  return kst.toISOString().slice(0, 10);
+}
+
+function getYesterdayKST() {
+  const now = new Date();
+  const kst = new Date(now.getTime() + 9 * 60 * 60 * 1000 - 86400000);
+  return kst.toISOString().slice(0, 10);
+}
+
 function init() {
   loadStorage();
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getTodayKST();
   document.getElementById('inp-date').value = today;
-  // 순서 중요: 입력 UI 먼저 렌더링 → 그 다음 값 로드
   renderExerciseInputs();
   loadDateData(today);
 }
@@ -547,23 +557,23 @@ function renderExerciseInputs() {
     if (ex.trackReps && ex.trackSets) {
       inputsHTML = `
         <div class="ex-input-group">
-          <input type="number" id="reps-${ex.id}" min="0" max="9999" value="0" />
+          <input type="number" id="reps-${ex.id}" min="0" max="9999" value="0" onfocus="this.select()" />
           <label>회</label>
         </div>
         <div class="ex-input-group">
-          <input type="number" id="sets-${ex.id}" min="0" max="999" value="0" />
+          <input type="number" id="sets-${ex.id}" min="0" max="999" value="0" onfocus="this.select()" />
           <label>세트</label>
         </div>`;
     } else if (ex.trackReps) {
       inputsHTML = `
         <div class="ex-input-group">
-          <input type="number" id="reps-${ex.id}" min="0" max="9999" value="0" />
+          <input type="number" id="reps-${ex.id}" min="0" max="9999" value="0" onfocus="this.select()" />
           <label>회</label>
         </div>`;
     } else if (ex.trackSets) {
       inputsHTML = `
         <div class="ex-input-group">
-          <input type="number" id="sets-${ex.id}" min="0" max="999" value="0" />
+          <input type="number" id="sets-${ex.id}" min="0" max="999" value="0" onfocus="this.select()" />
           <label>세트</label>
         </div>`;
     }
@@ -586,7 +596,6 @@ function loadDateData(date) {
     document.getElementById('inp-weight').value = rec.weight != null ? rec.weight : '';
     if (memoEl) memoEl.value = rec.memo || '';
     exercises.forEach(ex => {
-      // id로 먼저 찾고, 없으면 name으로 fallback
       let saved = rec.exercises ? rec.exercises[ex.id] : null;
       if (!saved && rec.exercises) {
         saved = Object.values(rec.exercises).find(v => v.name === ex.name) || null;
@@ -648,17 +657,12 @@ function flash(msg, color = '#1D9E75') {
 }
 
 // ===================== HISTORY TAB =====================
-// 저장된 데이터에서 해당 운동 항목 찾기 (id 우선, name fallback)
 function findSavedEx(rec, ex) {
   if (!rec.exercises) return null;
-  // 1. id로 직접 찾기
   if (rec.exercises[ex.id]) return rec.exercises[ex.id];
-  // 2. 이름으로 찾기 (id가 달라졌을 경우 대비)
   return Object.values(rec.exercises).find(v => v.name === ex.name) || null;
 }
 
-// 기록 내역 배지 텍스트 생성
-// done 여부와 무관하게 reps/sets 값이 있으면 표시
 function makeBadge(saved, ex) {
   if (!saved) return `<span class="badge badge-skip">-</span>`;
   const reps = saved.reps || 0;
@@ -666,14 +670,12 @@ function makeBadge(saved, ex) {
   const hasReps = ex ? ex.trackReps : (saved.trackReps !== undefined ? saved.trackReps : reps > 0);
   const hasSets = ex ? ex.trackSets : (saved.trackSets !== undefined ? saved.trackSets : sets > 0);
 
-  // 값이 하나도 없으면 체크 여부로 판단
   if (reps === 0 && sets === 0) {
     return saved.done
       ? `<span class="badge badge-done">완료</span>`
       : `<span class="badge badge-skip">-</span>`;
   }
 
-  // 값이 있으면 무조건 표시 (done 여부 무관)
   let label = '';
   if (hasReps && hasSets && reps > 0 && sets > 0) label = `${reps}/${sets}`;
   else if (reps > 0 && sets > 0) label = `${reps}/${sets}`;
@@ -694,13 +696,11 @@ function renderHistory() {
   if (records.length === 0) { none.style.display = 'block'; return; }
   none.style.display = 'none';
 
-  // 헤더 생성
   let thHTML = '<tr><th>날짜</th><th>체중</th>';
   exercises.forEach(ex => { thHTML += `<th>${ex.name}</th>`; });
   thHTML += '<th>메모</th></tr>';
   head.innerHTML = thHTML;
 
-  // 행 생성
   [...records].reverse().forEach(r => {
     const tr = document.createElement('tr');
     let tdHTML = `<td>${r.date.slice(5).replace('-', '/')}</td>`;
@@ -746,16 +746,14 @@ function avgWeight(days) {
 }
 
 function renderStats() {
-  const today = new Date();
-  const todayStr = today.toISOString().slice(0, 10);
-  const todayLabel = today.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
+  const todayStr = getTodayKST();
+  const ydStr = getYesterdayKST();
+  const todayLabel = new Date(todayStr + 'T12:00:00').toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
   document.getElementById('st-today').textContent = todayLabel;
 
   const todayRec = records.find(r => r.date === todayStr);
   const todayW = todayRec?.weight ?? null;
 
-  const yd = new Date(today); yd.setDate(yd.getDate() - 1);
-  const ydStr = yd.toISOString().slice(0, 10);
   const ydRec = records.find(r => r.date === ydStr);
   const ydW = ydRec?.weight ?? null;
 
@@ -986,16 +984,6 @@ function clearAllData() {
 
 // ===================== START =====================
 init();
-</script>
-
-<script>
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js')
-      .then(r => console.log('SW registered'))
-      .catch(e => console.log('SW failed:', e));
-  });
-}
 </script>
 </body>
 </html>
