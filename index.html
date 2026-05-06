@@ -433,7 +433,10 @@ input[type=date] { width: 180px; }
 <div class="modal-overlay" id="settings-modal" onclick="closeSettingsOnBg(event)">
   <div class="modal">
     <div class="modal-header">
-      <span class="modal-title">환경설정</span>
+      <span style="display:flex; align-items:baseline; gap:8px;">
+        <span class="modal-title">환경설정</span>
+        <span style="font-size:11px; color:var(--text-tertiary);">ver202605070821</span>
+      </span>
       <button class="modal-close" onclick="closeSettings()">✕</button>
     </div>
 
