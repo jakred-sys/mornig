@@ -203,6 +203,27 @@ input[type=date] { width: 180px; }
 }
 .period-btn.active { background: var(--bg-secondary); color: var(--text-primary); border-color: var(--border-strong); font-weight: 500; }
 
+/* Chart legend */
+.chart-legend {
+  display: flex; flex-wrap: wrap; gap: 10px;
+  margin-bottom: 12px;
+}
+.legend-item {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; color: var(--text-secondary);
+}
+.legend-line {
+  width: 20px; height: 0;
+  border-top: 2px dashed;
+  flex-shrink: 0;
+  position: relative;
+  top: 0;
+}
+.legend-dot-circle {
+  width: 6px; height: 6px; border-radius: 50%;
+  flex-shrink: 0;
+}
+
 /* History */
 .history-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .history-table th {
@@ -420,10 +441,11 @@ input[type=date] { width: 180px; }
     </div>
 
     <div class="card">
-      <div class="section-label">운동별 누적 횟수</div>
+      <div class="section-label">일별 운동량 변화</div>
       <div class="chart-period" id="ex-period-btns"></div>
-      <div class="chart-wrap" style="height:200px;">
-        <canvas id="exChart" role="img" aria-label="운동별 누적 횟수">운동 데이터가 쌓이면 표시됩니다.</canvas>
+      <div class="chart-legend" id="ex-chart-legend"></div>
+      <div class="chart-wrap" style="height:260px;">
+        <canvas id="exChart" role="img" aria-label="일별 운동량 변화">운동 데이터가 쌓이면 표시됩니다.</canvas>
       </div>
     </div>
   </div>
@@ -435,7 +457,7 @@ input[type=date] { width: 180px; }
     <div class="modal-header">
       <span style="display:flex; align-items:baseline; gap:8px;">
         <span class="modal-title">환경설정</span>
-        <span style="font-size:11px; color:var(--text-tertiary);">ver202605070821</span>
+        <span style="font-size:11px; color:var(--text-tertiary);">ver202605150001</span>
       </span>
       <button class="modal-close" onclick="closeSettings()">✕</button>
     </div>
@@ -479,7 +501,6 @@ let currentWeightPeriod = 30, currentExPeriod = 30;
 let tempExercises = [];
 
 // ===================== INIT =====================
-// 한국 시간(KST, UTC+9) 기준 오늘 날짜 반환
 function getTodayKST() {
   const now = new Date();
   const kst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
@@ -728,7 +749,8 @@ function saveMemo(date, value) {
 }
 
 // ===================== STATS TAB =====================
-const COLORS = ['#B5D4F4','#9FE1CB','#FAC775','#F4C0D1','#AFA9EC','#F0997B','#C0DD97','#F7C1C1'];
+// 운동별 고정 색상 팔레트
+const EX_COLORS = ['#378ADD','#1D9E75','#FAC775','#E24B4A','#AFA9EC','#F0997B','#C0DD97','#F4C0D1'];
 
 function getWeightedRecords(days) {
   const cutoff = new Date();
@@ -843,47 +865,94 @@ function renderWeightChart(days) {
   });
 }
 
+// ── 핵심 변경: 일별 운동량 점선 꺾은선 그래프 ──
 function renderExChart(days) {
   const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
   const gridColor = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)';
   const tickColor = isDark ? '#6b6b66' : '#9a9a95';
 
+  // 기간 내 운동 기록이 있는 날짜만 추출
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - days);
   const cutoffStr = cutoff.toISOString().slice(0, 10);
-  const filtered = records.filter(r => r.date >= cutoffStr);
+  const filtered = records.filter(r => r.date >= cutoffStr && r.exercises);
 
-  const totals = {};
-  exercises.forEach(ex => { totals[ex.id] = { name: ex.name, val: 0 }; });
+  const labels = filtered.map(r => r.date.slice(5)); // MM-DD
 
-  filtered.forEach(r => {
-    if (!r.exercises) return;
-    exercises.forEach(ex => {
+  // 운동별 데이터셋 구성 (점선 꺾은선)
+  const datasets = exercises.map((ex, i) => {
+    const color = EX_COLORS[i % EX_COLORS.length];
+    const data = filtered.map(r => {
       const saved = findSavedEx(r, ex);
-      if (!saved) return;
-      const reps = saved.reps || 0;
-      const sets = saved.sets || 0;
-      if (ex.trackReps && reps > 0) totals[ex.id].val += reps;
-      else if (ex.trackSets && sets > 0) totals[ex.id].val += sets;
+      if (!saved) return null;
+      // 회 우선, 없으면 세트 수
+      if (ex.trackReps && (saved.reps || 0) > 0) return saved.reps;
+      if (ex.trackSets && (saved.sets || 0) > 0) return saved.sets;
+      return null;
     });
+    return {
+      label: ex.name,
+      data,
+      borderColor: color,
+      backgroundColor: 'transparent',
+      pointBackgroundColor: color,
+      pointBorderColor: '#fff',
+      pointBorderWidth: 1.5,
+      pointRadius: 4,
+      pointHoverRadius: 6,
+      borderDash: [5, 4],   // 점선
+      borderWidth: 2,
+      tension: 0.3,
+      spanGaps: false,       // 기록 없는 날은 선 끊김
+    };
   });
 
-  const labels = Object.values(totals).map(t => t.name);
-  const data   = Object.values(totals).map(t => t.val);
+  // 범례 렌더링
+  const legendEl = document.getElementById('ex-chart-legend');
+  if (legendEl) {
+    legendEl.innerHTML = exercises.map((ex, i) => {
+      const color = EX_COLORS[i % EX_COLORS.length];
+      const unit = ex.trackReps ? '회' : '세트';
+      return `
+        <div class="legend-item">
+          <div class="legend-line" style="border-top-color:${color};"></div>
+          <div class="legend-dot-circle" style="background:${color};"></div>
+          <span>${ex.name}<span style="color:var(--text-tertiary); margin-left:2px;">(${unit})</span></span>
+        </div>`;
+    }).join('');
+  }
 
   if (exChartInst) exChartInst.destroy();
   exChartInst = new Chart(document.getElementById('exChart'), {
-    type: 'bar',
-    data: {
-      labels,
-      datasets: [{ label: '누적', data, backgroundColor: COLORS.slice(0, labels.length), borderRadius: 4 }]
-    },
+    type: 'line',
+    data: { labels, datasets },
     options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              if (ctx.parsed.y === null) return null;
+              const ex = exercises[ctx.datasetIndex];
+              const unit = ex ? (ex.trackReps ? '회' : '세트') : '';
+              return ` ${ctx.dataset.label}: ${ctx.parsed.y}${unit}`;
+            }
+          }
+        }
+      },
       scales: {
-        x: { ticks: { font:{size:11}, color:tickColor }, grid:{display:false} },
-        y: { ticks: { font:{size:11}, color:tickColor }, grid:{color:gridColor} }
+        x: {
+          ticks: { font:{size:11}, color:tickColor, autoSkip:true, maxTicksLimit:12 },
+          grid: { display: false }
+        },
+        y: {
+          beginAtZero: true,
+          ticks: { font:{size:11}, color:tickColor },
+          grid: { color: gridColor }
+        }
       }
     }
   });
